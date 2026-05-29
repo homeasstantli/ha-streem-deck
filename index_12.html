@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HA Stream Deck</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f3;
+    --surface: #ffffff;
+    --surface2: #f0efec;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18;
+    --text2: #6b6b68;
+    --text3: #9b9b98;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --accent: #1a1a18;
+    --green: #3b9e5e;
+    --danger: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #242422;
+      --surface2: #2e2e2c;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --text: #f0ede8;
+      --text2: #9b9b98;
+      --text3: #6b6b68;
+      --accent: #f0ede8;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
+  .app { width: 100%; max-width: 680px; }
+
+  /* Setup */
+  .setup-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; }
+  .setup-card h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .setup-card p { font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+  .field input { width: 100%; padding: 9px 12px; font-size: 14px; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-md); color: var(--text); outline: none; }
+  .field input:focus { border-color: var(--accent); }
+  .connect-btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 600; background: var(--accent); color: var(--bg); border: none; border-radius: var(--radius-md); cursor: pointer; margin-top: 4px; }
+  .connect-btn:hover { opacity: 0.85; }
+  .connect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .err { font-size: 13px; color: var(--danger); margin-top: 10px; display: none; }
+
+  /* Deck */
+  #deck { display: none; }
+  .deck-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .deck-header h1 { font-size: 18px; font-weight: 600; }
+  .status-bar { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .status-dot.off { background: var(--text3); }
+  .deck-actions { display: flex; gap: 8px; }
+  .icon-btn { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 7px 12px; cursor: pointer; font-size: 14px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+  .icon-btn:hover { background: var(--surface2); }
+  .icon-btn i { font-size: 16px; }
+
+  .tabs { display: flex; gap: 2px; background: var(--surface2); border-radius: var(--radius-md); padding: 3px; margin-bottom: 1rem; }
+  .tab { flex: 1; background: none; border: none; padding: 8px 6px; font-size: 13px; cursor: pointer; color: var(--text2); border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .tab i { font-size: 16px; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+
+  .tile { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: transform 0.1s, background 0.12s; min-height: 100px; position: relative; user-select: none; }
+  .tile:hover { background: var(--surface2); border-color: var(--border2); }
+  .tile:active { transform: scale(0.95); }
+  .tile.on { background: var(--surface2); border-color: var(--border2); }
+  .tile.loading { opacity: 0.5; pointer-events: none; }
+  .tile-icon { font-size: 28px; color: var(--text2); line-height: 1; }
+  .tile.on .tile-icon { color: var(--text); }
+  .tile-name { font-size: 12px; color: var(--text); text-align: center; font-weight: 500; line-height: 1.3; }
+  .tile-state { font-size: 11px; color: var(--text3); text-align: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); position: absolute; top: 10px; right: 10px; }
+  .tile.on .dot { background: var(--green); }
+
+  .media-tile { flex-direction: row; align-items: flex-start; min-height: auto; padding: 14px; gap: 12px; }
+  .media-tile .tile-icon { font-size: 22px; padding-top: 2px; flex-shrink: 0; }
+  .media-info { flex: 1; min-width: 0; }
+  .media-info .tile-name { text-align: left; font-size: 13px; }
+  .media-info .tile-state { text-align: left; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .media-controls { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .media-btn { background: none; border: 0.5px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 16px; color: var(--text); }
+  .media-btn:hover { background: var(--surface2); }
+
+  .cover-tile { min-height: 90px; }
+  .cover-controls { display: flex; gap: 6px; margin-top: 4px; }
+  .cover-btn { background: none; border: 0.5px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 16px; color: var(--text); }
+  .cover-btn:hover { background: var(--surface2); }
+
+  .scene-tile .tile-icon { color: #a78bfa; }
+
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 14px; }
+  .empty i { font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.4; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div id="setup">
+    <div class="setup-card">
+      <h1>HA Stream Deck</h1>
+      <p>Connect to your local Home Assistant instance.</p>
+      <div class="field">
+        <label>Home Assistant URL</label>
+        <input type="text" id="ha-url" placeholder="http://homeassistant.local:8123" />
+      </div>
+      <div class="field">
+        <label>Long-Lived Access Token</label>
+        <input type="password" id="ha-token" placeholder="eyJ…" />
+      </div>
+      <button class="connect-btn" id="connect-btn" onclick="connect()">Connect</button>
+      <div class="err" id="err-msg"></div>
+    </div>
+  </div>
+
+  <div id="deck">
+    <div class="deck-header">
+      <div>
+        <h1>Stream Deck</h1>
+        <div class="status-bar"><div class="status-dot" id="status-dot"></div><span id="status-text">Connected</span></div>
+      </div>
+      <div class="deck-actions">
+        <button class="icon-btn" onclick="refresh()"><i class="ti ti-refresh"></i> Refresh</button>
+        <button class="icon-btn" onclick="disconnect()"><i class="ti ti-plug-x"></i> Disconnect</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('lights',this)"><i class="ti ti-bulb"></i> Lights</button>
+      <button class="tab" onclick="switchTab('covers',this)"><i class="ti ti-layout-bottombar"></i> Covers</button>
+      <button class="tab" onclick="switchTab('media',this)"><i class="ti ti-player-play"></i> Media</button>
+      <button class="tab" onclick="switchTab('scenes',this)"><i class="ti ti-sparkles"></i> Scenes</button>
+    </div>
+
+    <div id="sec-lights" class="section active"><div class="grid" id="grid-lights"></div></div>
+    <div id="sec-covers" class="section"><div class="grid" id="grid-covers"></div></div>
+    <div id="sec-media" class="section"><div id="grid-media" style="display:flex;flex-direction:column;gap:10px;"></div></div>
+    <div id="sec-scenes" class="section"><div class="grid" id="grid-scenes"></div></div>
+  </div>
+
+</div>
+<script>
+let HA_URL = '', HA_TOKEN = '', stateCache = {};
+
+function ha(path, opts = {}) {
+  return fetch(HA_URL + '/api' + path, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + HA_TOKEN, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+  });
+}
+
+async function connect() {
+  const url = document.getElementById('ha-url').value.trim().replace(/\/$/,'');
+  const token = document.getElementById('ha-token').value.trim();
+  const btn = document.getElementById('connect-btn');
+  const err = document.getElementById('err-msg');
+  if (!url || !token) { showErr('Please fill in both fields.'); return; }
+  btn.disabled = true; btn.textContent = 'Connecting…'; err.style.display = 'none';
+  HA_URL = url; HA_TOKEN = token;
+  try {
+    const r = await ha('/');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    await r.json();
+    document.getElementById('setup').style.display = 'none';
+    document.getElementById('deck').style.display = 'block';
+    await loadAll();
+  } catch(e) {
+    HA_URL = ''; HA_TOKEN = '';
+    showErr('Could not connect. Check your URL and token. If you see a CORS error, add claude.ai (or file://) to cors_allowed_origins in configuration.yaml.');
+    btn.disabled = false; btn.textContent = 'Connect';
+  }
+}
+
+function showErr(msg) { const e = document.getElementById('err-msg'); e.textContent = msg; e.style.display = 'block'; }
+
+function disconnect() {
+  HA_URL = ''; HA_TOKEN = ''; stateCache = {};
+  document.getElementById('deck').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+  document.getElementById('connect-btn').disabled = false;
+  document.getElementById('connect-btn').textContent = 'Connect';
+  ['lights','covers','media','scenes'].forEach(s => { document.getElementById('grid-'+s).innerHTML=''; });
+}
+
+async function loadAll() {
+  try {
+    const r = await ha('/states');
+    if (!r.ok) throw new Error();
+    const states = await r.json();
+    stateCache = {};
+    states.forEach(s => stateCache[s.entity_id] = s);
+    renderLights(states.filter(s => s.entity_id.startsWith('light.')));
+    renderCovers(states.filter(s => s.entity_id.startsWith('cover.')));
+    renderMedia(states.filter(s => s.entity_id.startsWith('media_player.')));
+    renderScenes(states.filter(s => s.entity_id.startsWith('scene.')));
+    setStatus(true);
+  } catch(e) { setStatus(false); }
+}
+
+function setStatus(ok) {
+  document.getElementById('status-dot').className = 'status-dot' + (ok?'':' off');
+  document.getElementById('status-text').textContent = ok ? 'Connected' : 'Connection lost — try refreshing';
+}
+
+function fname(s) { return s.attributes.friendly_name || s.entity_id.split('.')[1].replace(/_/g,' '); }
+
+function lightIcon(s) {
+  const n = s.entity_id.toLowerCase();
+  if (n.includes('lamp')) return 'ti-lamp';
+  if (n.includes('strip')||n.includes('led')) return 'ti-rectangle';
+  if (n.includes('night')) return 'ti-moon';
+  return 'ti-bulb';
+}
+
+function renderLights(lights) {
+  const g = document.getElementById('grid-lights');
+  if (!lights.length) { g.innerHTML = '<div class="empty"><i class="ti ti-bulb"></i>No lights found</div>'; return; }
+  g.innerHTML = lights.map(s => {
+    const on = s.state === 'on';
+    const bri = s.attributes.brightness ? Math.round(s.attributes.brightness/255*100)+'%' : '';
+    return `<div class="tile${on?' on':''}" id="tile-${s.entity_id}" onclick="toggleLight('${s.entity_id}')">
+      <div class="dot"></div>
+      <i class="ti ${lightIcon(s)} tile-icon"></i>
+      <div class="tile-name">${fname(s)}</div>
+      <div class="tile-state">${on?(bri||'On'):'Off'}</div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleLight(eid) {
+  const tile = document.getElementById('tile-'+eid);
+  tile.classList.add('loading');
+  const on = tile.classList.contains('on');
+  try {
+    const r = await ha('/services/light/'+(on?'turn_off':'turn_on'), {method:'POST', body:JSON.stringify({entity_id:eid})});
+    if (!r.ok) throw new Error();
+    tile.classList.toggle('on');
+    tile.querySelector('.tile-state').textContent = on ? 'Off' : 'On';
+  } catch(e) { flashError(tile); }
+  tile.classList.remove('loading');
+}
+
+function renderCovers(covers) {
+  const g = document.getElementById('grid-covers');
+  if (!covers.length) { g.innerHTML = '<div class="empty"><i class="ti ti-layout-bottombar"></i>No covers found</div>'; return; }
+  g.innerHTML = covers.map(s => {
+    const pos = s.attributes.current_position != null ? s.attributes.current_position+'%' : s.state;
+    return `<div class="tile cover-tile" id="tile-${s.entity_id}">
+      <div class="dot"></div>
+      <i class="ti ti-layout-bottombar tile-icon"></i>
+      <div class="tile-name">${fname(s)}</div>
+      <div class="tile-state" id="cstate-${s.entity_id}">${pos}</div>
+      <div class="cover-controls">
+        <button class="cover-btn" onclick="coverCmd('${s.entity_id}','open')" title="Open"><i class="ti ti-arrow-up"></i></button>
+        <button class="cover-btn" onclick="coverCmd('${s.entity_id}','stop')" title="Stop"><i class="ti ti-square"></i></button>
+        <button class="cover-btn" onclick="coverCmd('${s.entity_id}','close')" title="Close"><i class="ti ti-arrow-down"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function coverCmd(eid, cmd) {
+  const svc = {open:'open_cover',close:'close_cover',stop:'stop_cover'}[cmd];
+  const tile = document.getElementById('tile-'+eid);
+  tile.classList.add('loading');
+  try {
+    const r = await ha('/services/cover/'+svc, {method:'POST', body:JSON.stringify({entity_id:eid})});
+    if (!r.ok) throw new Error();
+    document.getElementById('cstate-'+eid).textContent = cmd==='open'?'Opening…':cmd==='close'?'Closing…':'Stopped';
+  } catch(e) { flashError(tile); }
+  tile.classList.remove('loading');
+}
+
+function renderMedia(players) {
+  const g = document.getElementById('grid-media');
+  if (!players.length) { g.innerHTML = '<div class="empty"><i class="ti ti-player-play"></i>No media players found</div>'; return; }
+  g.innerHTML = players.map(s => {
+    const playing = s.state === 'playing';
+    const track = s.attributes.media_title || '';
+    const artist = s.attributes.media_artist || '';
+    const stateLabel = playing ? (track ? track+(artist?' · '+artist:'') : 'Playing') : s.state.charAt(0).toUpperCase()+s.state.slice(1);
+    return `<div class="tile media-tile" id="tile-${s.entity_id}">
+      <i class="ti ti-device-speaker tile-icon"></i>
+      <div class="media-info">
+        <div class="tile-name">${fname(s)}</div>
+        <div class="tile-state" id="mstate-${s.entity_id}">${stateLabel}</div>
+        <div class="media-controls">
+          <button class="media-btn" onclick="mediaCmd('${s.entity_id}','media_previous_track')" title="Prev"><i class="ti ti-player-skip-back"></i></button>
+          <button class="media-btn" id="mplay-${s.entity_id}" onclick="mediaCmd('${s.entity_id}','${playing?'media_pause':'media_play'}')" title="${playing?'Pause':'Play'}"><i class="ti ${playing?'ti-player-pause':'ti-player-play'}"></i></button>
+          <button class="media-btn" onclick="mediaCmd('${s.entity_id}','media_next_track')" title="Next"><i class="ti ti-player-skip-forward"></i></button>
+          <button class="media-btn" onclick="mediaCmd('${s.entity_id}','volume_down')" title="Vol −"><i class="ti ti-volume-3"></i></button>
+          <button class="media-btn" onclick="mediaCmd('${s.entity_id}','volume_up')" title="Vol +"><i class="ti ti-volume"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function mediaCmd(eid, svc) {
+  try {
+    await ha('/services/media_player/'+svc, {method:'POST', body:JSON.stringify({entity_id:eid})});
+    setTimeout(() => refreshEntity(eid), 600);
+  } catch(e) {}
+}
+
+function renderScenes(scenes) {
+  const g = document.getElementById('grid-scenes');
+  if (!scenes.length) { g.innerHTML = '<div class="empty"><i class="ti ti-sparkles"></i>No scenes found</div>'; return; }
+  g.innerHTML = scenes.map(s => {
+    return `<div class="tile scene-tile" id="tile-${s.entity_id}" onclick="activateScene('${s.entity_id}')">
+      <i class="ti ti-sparkles tile-icon"></i>
+      <div class="tile-name">${fname(s)}</div>
+      <div class="tile-state">Tap to activate</div>
+    </div>`;
+  }).join('');
+}
+
+async function activateScene(eid) {
+  const tile = document.getElementById('tile-'+eid);
+  tile.classList.add('loading');
+  try {
+    const r = await ha('/services/scene/turn_on', {method:'POST', body:JSON.stringify({entity_id:eid})});
+    if (!r.ok) throw new Error();
+    tile.querySelector('.tile-state').textContent = 'Activated ✓';
+    setTimeout(() => tile.querySelector('.tile-state').textContent = 'Tap to activate', 2000);
+  } catch(e) { flashError(tile); }
+  tile.classList.remove('loading');
+}
+
+async function refreshEntity(eid) {
+  try {
+    const r = await ha('/states/'+eid);
+    const s = await r.json();
+    stateCache[eid] = s;
+    if (eid.startsWith('media_player.')) {
+      const playing = s.state === 'playing';
+      const track = s.attributes.media_title || '';
+      const artist = s.attributes.media_artist || '';
+      const label = playing ? (track ? track+(artist?' · '+artist:'') : 'Playing') : s.state.charAt(0).toUpperCase()+s.state.slice(1);
+      const st = document.getElementById('mstate-'+eid); if (st) st.textContent = label;
+      const pb = document.getElementById('mplay-'+eid);
+      if (pb) { pb.innerHTML = `<i class="ti ${playing?'ti-player-pause':'ti-player-play'}"></i>`; pb.onclick = () => mediaCmd(eid, playing?'media_pause':'media_play'); }
+    }
+  } catch(e) {}
+}
+
+function flashError(tile) {
+  tile.style.borderColor = 'var(--danger)';
+  setTimeout(() => tile.style.borderColor = '', 1000);
+}
+
+function refresh() { loadAll(); }
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sec-'+name).classList.add('active');
+}
+
+document.getElementById('ha-token').addEventListener('keydown', e => { if (e.key==='Enter') connect(); });
+document.getElementById('ha-url').addEventListener('keydown', e => { if (e.key==='Enter') connect(); });
+</script>
+</body>
+</html>
